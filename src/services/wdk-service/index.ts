@@ -1,9 +1,9 @@
-import { HRPC as WdkManager } from '@tetherto/pear-wrk-wdk';
+import { HRPC as WdkManager } from '@tetherto/pear-wrk-wdk-valis';
 // @ts-expect-error - bundle file doesn't have type definitions
 import wdkWorkletBundle from './wdk-worklet.mobile.bundle.js';
 import b4a from 'b4a';
 import * as bip39 from 'bip39';
-import Decimal from 'decimal.js';
+// import Decimal from 'decimal.js';
 // @ts-expect-error - bundle file doesn't have type definitions
 import secretManagerWorkletBundle from './wdk-secret-manager-worklet.bundle.js';
 import { BareWorkletApi, InstanceEnum } from './bare-api';
@@ -39,22 +39,12 @@ export const SMART_CONTRACT_BALANCE_ADDRESSES = {
 
 const toNetwork = (n: NetworkType): string => {
   switch (n) {
-    case NetworkType.SEGWIT:
-      return 'bitcoin';
     case NetworkType.ETHEREUM:
       return 'ethereum';
-    case NetworkType.TON:
-      return 'ton';
-    case NetworkType.POLYGON:
-      return 'polygon';
-    case NetworkType.ARBITRUM:
-      return 'arbitrum';
-    case NetworkType.SOLANA:
-      return 'solana';
-    case NetworkType.TRON:
-      return 'tron';
+    case NetworkType.VALIS:
+      return 'valis';
     default:
-      return 'bitcoin';
+      return 'valis';
   }
 };
 
@@ -174,7 +164,7 @@ class WDKService {
       // 1. Gracefully stop worklet operations if they're running
       if (this.wdkManager) {
         try {
-          await this.wdkManager.workletStop();
+          // await this.wdkManager.workletStop();
         } catch (error) {
           // Worklet might not be started, ignore
           console.warn('Could not stop wdkManager worklet:', error);
@@ -354,17 +344,22 @@ class WDKService {
       throw new Error('WDK Manager not initialized');
     }
 
-    if (network === NetworkType.SEGWIT) {
-      return await this.wdkManager.getAddress({
-        network: toNetwork(network),
-        accountIndex: index,
-      });
-    } else {
-      return await this.wdkManager.getAbstractedAddress({
-        network: toNetwork(network),
-        accountIndex: index,
-      });
-    }
+    return await this.wdkManager.getAddress({
+      network: toNetwork(network),
+      accountIndex: index,
+    });
+
+    // if (network === NetworkType.SEGWIT) {
+    //   return await this.wdkManager.getAddress({
+    //     network: toNetwork(network),
+    //     accountIndex: index,
+    //   });
+    // } else {
+    //   return await this.wdkManager.getAbstractedAddress({
+    //     network: toNetwork(network),
+    //     accountIndex: index,
+    //   });
+    // }
   }
 
   async resolveWalletAddresses(
@@ -375,12 +370,15 @@ class WDKService {
       throw new Error('WDK Manager not initialized');
     }
 
-    const addressPromises = [];
+    const addressPromises: Promise<{ address: string }>[] = [];
     const networkAddresses: Partial<Record<NetworkType, string>> = {};
-    const addressesArr = [];
+    const addressesArr: { [key: string]: null }[] = [];
 
     for (const asset of enabledAssets) {
-      for (const networkType of Object.keys(AssetAddressMap[asset])) {
+      const networks = AssetAddressMap[asset];
+      if (!networks) continue;
+
+      for (const networkType of Object.keys(networks)) {
         addressesArr.push({ [networkType]: null });
         addressPromises.push(
           this.getAssetAddress(networkType as NetworkType, index)
@@ -403,165 +401,14 @@ class WDKService {
       }
     });
 
-    networkAddresses[NetworkType.POLYGON] =
-      networkAddresses[NetworkType.ETHEREUM];
-    networkAddresses[NetworkType.ARBITRUM] =
+    networkAddresses[NetworkType.VALIS] =
       networkAddresses[NetworkType.ETHEREUM];
 
     return networkAddresses;
   }
 
-  async quoteSendByNetwork(
-    network: NetworkType,
-    index: number,
-    amount: number,
-    recipientAddress: string,
-    asset: AssetTicker
-  ) {
-    try {
-      if (network === NetworkType.SEGWIT) {
-        const value = new Decimal(amount)
-          .mul(this.getDenominationValue(AssetTicker.BTC))
-          .toNumber();
-        const quote = await this.wdkManager.quoteSendTransaction({
-          network: 'bitcoin',
-          accountIndex: index,
-          options: {
-            to: recipientAddress,
-            value: value.toString(),
-          },
-        });
-
-        return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
-      } else if (
-        [
-          NetworkType.ETHEREUM,
-          NetworkType.POLYGON,
-          NetworkType.ARBITRUM,
-          NetworkType.TON,
-        ].includes(network)
-      ) {
-        const sendAmount = 1000;
-
-        const config = {
-          paymasterToken: {
-            // @ts-expect-error
-            address: SMART_CONTRACT_BALANCE_ADDRESSES[asset][network],
-          },
-        };
-
-        const quote = await this.wdkManager.abstractedAccountQuoteTransfer({
-          network: network,
-          accountIndex: index,
-          options: {
-            recipient: recipientAddress,
-            // @ts-expect-error
-            token: SMART_CONTRACT_BALANCE_ADDRESSES[asset][network],
-            amount: sendAmount.toString(),
-          },
-          config: config,
-        });
-
-        return Number(quote.fee) / this.getDenominationValue(AssetTicker.USDT);
-      } else {
-        throw new Error('Unsupported network');
-      }
-    } catch (error) {
-      const insufficientBalancePatterns = [
-        'Insufficient balance',
-        'Details: validator: callData reverts',
-        'JSON is not a valid request object',
-      ];
-
-      if (
-        insufficientBalancePatterns.some((pattern) =>
-          (error as any)?.message?.includes(pattern)
-        )
-      ) {
-        throw new Error('Insufficient balance');
-      }
-
-      throw error;
-    }
-  }
-
-  async sendByNetwork(
-    network: NetworkType,
-    index: number,
-    amount: number,
-    recipientAddress: string,
-    asset: AssetTicker
-  ): Promise<any> {
-    if (!this.wdkManager) {
-      throw new Error('WDK Manager not initialized');
-    }
-
-    // Check if any wallet exists and the WDK Manager is started with a seed
-    const hasWallet = this.walletManagerCache.size > 0;
-    if (!hasWallet) {
-      throw new Error(
-        'No wallet found. Please create or import a wallet first before sending transactions.'
-      );
-    }
-
-    if (network === NetworkType.SEGWIT) {
-      const sendParams = {
-        to: recipientAddress,
-        value: new Decimal(amount)
-          .mul(this.getDenominationValue(AssetTicker.BTC))
-          .round()
-          .toString(),
-      };
-
-      const response = await this.wdkManager.sendTransaction({
-        network: network,
-        accountIndex: index,
-        options: sendParams,
-      });
-
-      return response;
-    } else if (
-      [
-        NetworkType.ETHEREUM,
-        NetworkType.POLYGON,
-        NetworkType.ARBITRUM,
-        NetworkType.TON,
-      ].includes(network)
-    ) {
-      const sendParams = {
-        recipient: recipientAddress,
-        // @ts-expect-error
-        token: SMART_CONTRACT_BALANCE_ADDRESSES[asset][network],
-        amount: new Decimal(amount)
-          .mul(this.getDenominationValue(AssetTicker.USDT))
-          .round()
-          .toString(),
-      };
-
-      const config = {
-        paymasterToken: {
-          // @ts-expect-error
-          address: SMART_CONTRACT_BALANCE_ADDRESSES[asset][network],
-        },
-      };
-
-      const response = await this.wdkManager.abstractedAccountTransfer({
-        network: network,
-        accountIndex: index,
-        options: sendParams,
-        config,
-      });
-
-      return response;
-    } else {
-      throw new Error('Unsupported network');
-    }
-  }
-
   getDenominationValue(asset: AssetTicker): number {
     switch (asset) {
-      case AssetTicker.BTC:
-        return 100000000;
       case AssetTicker.USDT:
         return 1000000;
       case AssetTicker.XAUT:
@@ -583,9 +430,9 @@ class WDKService {
 
     const walletName = params.walletName;
     const availableAssets = [
-      AssetTicker.BTC,
       AssetTicker.USDT,
       AssetTicker.XAUT,
+      AssetTicker.VNET,
     ];
 
     const wallet: Wallet = {

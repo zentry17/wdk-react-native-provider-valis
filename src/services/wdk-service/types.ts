@@ -2,43 +2,46 @@ export enum AssetTicker {
   BTC = 'btc',
   USDT = 'usdt',
   XAUT = 'xaut',
+  VNET = 'vnet',
 }
 
 export enum NetworkType {
-  SEGWIT = 'bitcoin',
-  LIGHTNING = 'lightning',
   ETHEREUM = 'ethereum',
-  SOLANA = 'solana',
-  TRON = 'tron',
-  TON = 'ton',
-  POLYGON = 'polygon',
-  ARBITRUM = 'arbitrum',
+  VALIS = 'valis',
 }
 
-export const AssetAddressMap = {
-  [AssetTicker.BTC]: {
-    [NetworkType.SEGWIT]: 'bitcoin',
-  },
+// export const AssetAddressMap = {
+
+//   [AssetTicker.USDT]: {
+//     [NetworkType.ETHEREUM]: 'ethereum',
+//   },
+//   [AssetTicker.XAUT]: {
+//     [NetworkType.ETHEREUM]: 'ethereum',
+//   },
+//   [AssetTicker.VNET]: {
+//     [NetworkType.VALIS]: 'valis',
+//   },
+// };
+
+export const AssetAddressMap: Partial<
+  Record<AssetTicker, Partial<Record<NetworkType, string>>>
+> = {
   [AssetTicker.USDT]: {
     [NetworkType.ETHEREUM]: 'ethereum',
-    [NetworkType.POLYGON]: 'polygon',
-    [NetworkType.ARBITRUM]: 'arbitrum',
-    [NetworkType.TON]: 'ton',
   },
   [AssetTicker.XAUT]: {
     [NetworkType.ETHEREUM]: 'ethereum',
   },
+  [AssetTicker.VNET]: {
+    [NetworkType.VALIS]: 'valis',
+  },
 };
 
-export const AssetBalanceMap = {
-  [AssetTicker.BTC]: {
-    [NetworkType.SEGWIT]: 'bitcoin',
-  },
+export const AssetBalanceMap: Partial<
+  Record<AssetTicker, Partial<Record<NetworkType, string>>>
+> = {
   [AssetTicker.USDT]: {
     [NetworkType.ETHEREUM]: 'ethereum',
-    [NetworkType.POLYGON]: 'polygon',
-    [NetworkType.ARBITRUM]: 'arbitrum',
-    [NetworkType.TON]: 'ton',
   },
   [AssetTicker.XAUT]: {
     [NetworkType.ETHEREUM]: 'ethereum',
@@ -97,41 +100,10 @@ export interface EVMChainConfig {
   safeModulesVersion?: string;
 }
 
-export interface TONChainConfig {
-  tonApiClient: {
-    url: string;
-  };
-  tonClient: {
-    url: string;
-  };
-  paymasterToken: PaymasterToken;
-  transferMaxFee: number;
+export interface ValisChainConfig {
+  provider: string; // WebSocket URL
 }
-
-export interface BitcoinChainConfig {
-  host: string;
-  port: number;
-}
-
-export interface TronChainConfig {
-  chainId: number;
-  provider: string;
-  gasFreeProvider: string;
-  apiKey: string;
-  apiSecret: string;
-  serviceProvider: string;
-  verifyingContract: string;
-  transferMaxFee: number;
-  swapMaxFee: number;
-  bridgeMaxFee: number;
-  paymasterToken: PaymasterToken;
-}
-
 export interface ChainsConfig {
   ethereum?: EVMChainConfig;
-  arbitrum?: EVMChainConfig;
-  polygon?: EVMChainConfig;
-  ton?: TONChainConfig;
-  bitcoin?: BitcoinChainConfig;
-  tron?: TronChainConfig;
+  valis?: ValisChainConfig;
 }

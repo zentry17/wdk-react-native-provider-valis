@@ -16,7 +16,7 @@ export {
   SMART_CONTRACT_BALANCE_ADDRESSES,
 } from './services/wdk-service';
 
-// Export all types
+// Export all typess
 export type { Amount, Transaction, Wallet } from './services/wdk-service/types';
 
 // Export enums (can be used as both types and values)

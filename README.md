@@ -98,7 +98,7 @@ npm install \
 
 ### Metro Configuration
 
-The library requires Node.js core module polyfills for React Native. Configure your Metro bundler using the provided helper function.
+The library requires Node.js core module polyfills for React Native. Configure your Metro bundler using the provided helper function .
 
 **For Expo projects:**
 

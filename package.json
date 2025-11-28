@@ -10,7 +10,10 @@
       "types": "./lib/typescript/src/index.d.ts",
       "default": "./lib/module/index.js"
     },
-    "./metro-polyfills": "./metro-polyfills.js",
+    "./metro-polyfills": {
+      "require": "./metro-polyfills.js",
+      "default": "./metro-polyfills.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
